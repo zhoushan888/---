@@ -1,0 +1,831 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>矩阵计算基础 · 3D 向量可视化</title>
+<style>
+  :root {
+    --bg: #eef2f8;
+    --card: #ffffff;
+    --ink: #0f172a;
+    --muted: #64748b;
+    --line: #e2e8f0;
+    --brand: #4f46e5;
+    --brand-soft: #eef2ff;
+    --shadow: 0 10px 30px rgba(15, 23, 42, 0.06);
+    --shadow-sm: 0 2px 8px rgba(15, 23, 42, 0.04);
+  }
+  * { box-sizing: border-box; }
+  body {
+    margin: 0;
+    background: radial-gradient(1200px 600px at 10% -10%, #e0e7ff 0%, transparent 55%),
+                radial-gradient(900px 500px at 95% 0%, #e0f2fe 0%, transparent 50%),
+                var(--bg);
+    color: var(--ink);
+    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", "PingFang SC",
+                 "Microsoft YaHei", sans-serif;
+    font-size: 14px;
+    line-height: 1.6;
+  }
+  .topbar {
+    padding: 26px 36px 20px;
+    background: rgba(255,255,255,0.72);
+    backdrop-filter: blur(12px);
+    border-bottom: 1px solid var(--line);
+  }
+  .topbar-inner { max-width: 1500px; margin: 0 auto; display: flex; align-items: center; gap: 16px; }
+  .logo {
+    width: 44px; height: 44px; border-radius: 13px; flex: none;
+    background: linear-gradient(135deg, #6366f1, #0ea5e9);
+    box-shadow: 0 6px 16px rgba(79,70,229,0.28);
+    display: flex; align-items: center; justify-content: center;
+    color: #fff; font-weight: 700; font-size: 19px;
+  }
+  .topbar h1 { margin: 0; font-size: 21px; letter-spacing: -0.3px; }
+  .topbar p { margin: 2px 0 0; color: var(--muted); font-size: 12.5px; }
+  .topbar .tag {
+    margin-left: auto; font-size: 11px; color: var(--brand);
+    background: var(--brand-soft); border: 1px solid #dbe3ff;
+    padding: 4px 10px; border-radius: 999px; white-space: nowrap;
+  }
+  .tabbar { max-width: 1500px; margin: 18px auto 0; padding: 0 36px; }
+  .tabs {
+    display: inline-flex; gap: 4px; padding: 5px;
+    background: rgba(255,255,255,0.9); border: 1px solid var(--line);
+    border-radius: 14px; box-shadow: var(--shadow-sm);
+  }
+  .tab {
+    border: 0; background: transparent; padding: 8px 16px;
+    border-radius: 10px; cursor: pointer; color: var(--muted);
+    font-size: 13px; font-weight: 600; user-select: none; white-space: nowrap;
+    transition: background .18s, color .18s, box-shadow .18s;
+  }
+  .tab:hover { background: #f1f5f9; color: var(--ink); }
+  .tab.active { background: var(--brand); color: #fff; box-shadow: 0 4px 12px rgba(79,70,229,0.3); }
+  .layout {
+    max-width: 1500px; margin: 18px auto 0;
+    display: grid; grid-template-columns: 336px minmax(0, 1fr);
+    gap: 20px; padding: 0 36px 44px; align-items: start;
+  }
+  .panel, .stage {
+    background: var(--card); border: 1px solid var(--line);
+    border-radius: 18px; box-shadow: var(--shadow);
+  }
+  .panel { padding: 20px; position: sticky; top: 18px; }
+  .stage { padding: 18px; min-width: 0; }
+  .panel-head { display: flex; align-items: flex-start; gap: 11px; margin-bottom: 14px; }
+  .step {
+    width: 28px; height: 28px; flex: none; border-radius: 9px;
+    background: var(--brand-soft); color: var(--brand);
+    display: flex; align-items: center; justify-content: center;
+    font-weight: 700; font-size: 13px;
+  }
+  .panel h2 { margin: 0; font-size: 15.5px; letter-spacing: -0.2px; }
+  .panel .hint {
+    color: var(--muted); font-size: 12px; margin: 8px 0 16px;
+    background: #f8fafc; border-left: 3px solid #c7d2fe;
+    padding: 8px 10px; border-radius: 0 8px 8px 0;
+  }
+  label { display: block; font-weight: 600; margin: 14px 0 6px; font-size: 12.5px; color: #334155; }
+  textarea, input[type="text"], select {
+    width: 100%; border: 1px solid var(--line); border-radius: 10px;
+    padding: 9px 11px; font-family: ui-monospace, Menlo, Consolas, monospace;
+    font-size: 13px; color: var(--ink); background: #fbfcfe;
+    resize: vertical; transition: border-color .15s, box-shadow .15s;
+  }
+  textarea:focus, input:focus, select:focus {
+    outline: none; border-color: #a5b4fc; box-shadow: 0 0 0 3px rgba(99,102,241,0.12);
+  }
+  textarea { min-height: 96px; line-height: 1.7; }
+  .row { display: flex; gap: 8px; margin-top: 16px; flex-wrap: wrap; }
+  button {
+    border: 1px solid transparent; border-radius: 9px; padding: 8px 15px;
+    cursor: pointer; font-size: 12.5px; font-weight: 600;
+    background: #f1f5f9; color: #334155; transition: all .15s;
+  }
+  button:hover { background: #e2e8f0; }
+  button.primary { background: var(--brand); color: #fff; box-shadow: 0 4px 12px rgba(79,70,229,0.24); }
+  button.primary:hover { background: #4338ca; }
+  .stage-head {
+    display: flex; align-items: center; gap: 10px; flex-wrap: wrap;
+    margin-bottom: 12px; padding: 0 2px;
+  }
+  .stage-title { font-size: 14px; font-weight: 700; }
+  .stage-title small { color: var(--muted); font-weight: 400; font-size: 11.5px; margin-left: 6px; }
+  .stage-head .spacer { flex: 1; }
+  .hint-pill {
+    font-size: 11px; color: var(--muted); background: #f8fafc;
+    border: 1px solid var(--line); padding: 4px 10px; border-radius: 999px;
+  }
+  canvas {
+    display: block; width: 100%; border-radius: 13px;
+    border: 1px solid #e7ecf3; background: #fbfdff;
+  }
+  #view3d { height: 500px; cursor: grab; }
+  #view3d:active { cursor: grabbing; }
+  #view2d { height: 290px; }
+  .subhead {
+    display: flex; align-items: center; gap: 8px;
+    font-size: 12.5px; font-weight: 700; color: #334155; margin: 18px 2px 8px;
+  }
+  .subhead::before { content: ""; width: 3px; height: 14px; border-radius: 2px; background: var(--brand); }
+  .legend { display: flex; gap: 8px; flex-wrap: wrap; margin: 14px 2px 0; }
+  .legend .lg {
+    display: inline-flex; align-items: center; gap: 6px; font-size: 11.5px;
+    color: #475569; background: #f8fafc; border: 1px solid var(--line);
+    padding: 4px 10px; border-radius: 999px;
+  }
+  .legend i { width: 13px; height: 3px; border-radius: 2px; }
+  #results {
+    margin-top: 14px; padding: 15px 17px; background: #f8fafc;
+    border: 1px solid var(--line); border-left: 3px solid var(--brand);
+    border-radius: 12px; min-height: 60px;
+  }
+  #results.error { color: #b91c1c; background: #fef2f2; border-left-color: #dc2626; }
+  .res-title { font-size: 12px; font-weight: 700; color: #334155; margin-bottom: 9px; }
+  .formula {
+    font-family: ui-monospace, Menlo, Consolas, monospace; font-size: 13px;
+    background: #fff; border: 1px solid var(--line); border-radius: 8px;
+    padding: 8px 11px; margin-bottom: 11px; color: #1e293b;
+  }
+  .kv-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(150px, 1fr)); gap: 8px; margin: 10px 0; }
+  .kv {
+    background: #fff; border: 1px solid var(--line); border-radius: 9px;
+    padding: 8px 11px; display: flex; justify-content: space-between; gap: 10px;
+    font-size: 12px;
+  }
+  .kv .k { color: var(--muted); }
+  .kv .v { font-family: ui-monospace, Menlo, Consolas, monospace; color: var(--ink); font-weight: 600; }
+  .mono {
+    font-family: ui-monospace, Menlo, Consolas, monospace; font-size: 12px;
+    color: #334155; white-space: pre-wrap; line-height: 1.8;
+  }
+  .note { font-size: 11.5px; color: var(--muted); margin-top: 10px; }
+  .bar-row { display: flex; align-items: center; gap: 9px; font-size: 11.5px; margin: 6px 0; }
+  .bar-row > span:first-child { width: 22px; color: var(--muted); }
+  .bar-row > span:last-child { width: 56px; text-align: right; font-family: ui-monospace, monospace; }
+  .bar-track { flex: 1; height: 7px; background: #e2e8f0; border-radius: 99px; overflow: hidden; }
+  .bar-track i { display: block; height: 100%; background: linear-gradient(90deg, #6366f1, #0ea5e9); border-radius: 99px; }
+  table.coord { width: 100%; border-collapse: collapse; font-size: 12px; margin-top: 10px; }
+  table.coord th, table.coord td {
+    border-bottom: 1px solid var(--line); padding: 6px 8px; text-align: right;
+  }
+  table.coord th:first-child, table.coord td:first-child { text-align: left; color: var(--muted); }
+  table.coord th { color: var(--muted); font-weight: 600; font-size: 11px; }
+  table.coord td { font-family: ui-monospace, Menlo, Consolas, monospace; }
+  .matrix { font-family: ui-monospace, Menlo, Consolas, monospace; font-size: 12px; line-height: 1.9; }
+  .hidden { display: none !important; }
+  .sec { display: none; }
+  .sec.active { display: block; }
+  @media (max-width: 980px) {
+    .layout { grid-template-columns: 1fr; padding: 0 16px 32px; }
+    .panel { position: static; }
+    .topbar, .tabbar { padding-left: 16px; padding-right: 16px; }
+    .topbar .tag { display: none; }
+  }
+</style>
+</head>
+<body>
+
+<div class="topbar">
+  <div class="topbar-inner">
+    <div class="logo">∑</div>
+    <div>
+      <h1>矩阵计算基础 · 3D 向量可视化</h1>
+      <p>标准基 · 基变换 · 降维投影 · 施密特正交化</p>
+    </div>
+    <div class="tag">HTML5 · Canvas · 无外部依赖</div>
+  </div>
+</div>
+
+<div class="tabbar">
+  <div class="tabs">
+    <div class="tab active" data-tab="std">01 &nbsp;标准正交基</div>
+    <div class="tab" data-tab="basis">02 &nbsp;基变换</div>
+    <div class="tab" data-tab="proj">03 &nbsp;降维投影</div>
+    <div class="tab" data-tab="gram">04 &nbsp;施密特正交化</div>
+  </div>
+</div>
+
+<div class="layout">
+  <aside class="panel">
+    <section class="sec active" id="sec-std">
+      <div class="panel-head"><div class="step">1</div><h2>标准正交基下的向量</h2></div>
+      <p class="hint">每行一个 3D 向量，在标准正交基 E = (e₁, e₂, e₃) 下从原点绘制。</p>
+      <label>向量坐标（每行一个）</label>
+      <textarea id="stdVecs">3,2,2
+1,-2,3
+-2,1,2.5</textarea>
+      <div class="row"><button class="primary" onclick="render()">绘制</button><button onclick="loadExample('std')">载入示例</button></div>
+    </section>
+
+    <section class="sec" id="sec-basis">
+      <div class="panel-head"><div class="step">2</div><h2>基变换</h2></div>
+      <p class="hint">每行输入一个基向量（按列组成 B）。求 u = B⁻¹x，并用分量叠加还原 x。</p>
+      <label>新基的 3 个基向量</label>
+      <textarea id="basisVecs">1,0,0
+1,1,0
+1,1,1</textarea>
+      <label>标准基下的坐标 x</label>
+      <input type="text" id="basisX" value="4,5,6">
+      <div class="row"><button class="primary" onclick="render()">计算并绘制</button><button onclick="loadExample('basis')">载入示例</button></div>
+    </section>
+
+    <section class="sec" id="sec-proj">
+      <div class="panel-head"><div class="step">3</div><h2>3D → 2D 降维投影</h2></div>
+      <p class="hint">PCA 自动求最佳拟合平面；自定义模式用两个向量张成平面。</p>
+      <label>点集（每行一个 3D 点）</label>
+      <textarea id="projPts">1,0,0.6
+2,1,1.3
+3,1,1.8
+4,2,2.4
+5,2,2.9
+0,-1,-0.4</textarea>
+      <label>投影方式</label>
+      <select id="projMode" onchange="toggleProjInputs()">
+        <option value="pca">PCA 最佳拟合平面</option>
+        <option value="custom">自定义平面</option>
+      </select>
+      <div id="customPlane" class="hidden">
+        <label>平面向量 u</label><input type="text" id="planeU" value="1,1,0">
+        <label>平面向量 v</label><input type="text" id="planeV" value="0,0,1">
+      </div>
+      <div class="row"><button class="primary" onclick="render()">计算并绘制</button><button onclick="loadExample('proj')">载入示例</button></div>
+    </section>
+
+    <section class="sec" id="sec-gram">
+      <div class="panel-head"><div class="step">4</div><h2>施密特正交化</h2></div>
+      <p class="hint">对输入向量组做 Gram–Schmidt，得到标准正交基 Q，并验证 QᵀQ = I。</p>
+      <label>向量组（每行一个，1~3 个）</label>
+      <textarea id="gramVecs">1,1,0
+1,0,1
+0,1,1</textarea>
+      <div class="row"><button class="primary" onclick="render()">计算并绘制</button><button onclick="loadExample('gram')">载入示例</button></div>
+    </section>
+  </aside>
+
+  <main class="stage">
+    <div class="stage-head">
+      <div class="stage-title" id="stageTitle">标准正交基中的向量<small>标准正交基 E</small></div>
+      <div class="spacer"></div>
+      <button onclick="resetView()">重置视角</button>
+      <span class="hint-pill">拖动旋转 · 滚轮缩放</span>
+    </div>
+    <canvas id="view3d"></canvas>
+    <div id="view2dWrap" class="hidden">
+      <div class="subhead">投影到 2D 平面后的坐标</div>
+      <canvas id="view2d"></canvas>
+    </div>
+    <div class="legend" id="legend"></div>
+    <div id="results"></div>
+  </main>
+</div>
+
+<script>
+"use strict";
+
+/* ============================ 向量与矩阵运算 ============================ */
+const dot = (a, b) => a[0]*b[0] + a[1]*b[1] + a[2]*b[2];
+const add = (a, b) => [a[0]+b[0], a[1]+b[1], a[2]+b[2]];
+const sub = (a, b) => [a[0]-b[0], a[1]-b[1], a[2]-b[2]];
+const mul = (a, k) => [a[0]*k, a[1]*k, a[2]*k];
+const norm = a => Math.sqrt(dot(a, a));
+const normalize = a => { const n = norm(a); return n < 1e-12 ? [0,0,0] : mul(a, 1/n); };
+const fmt = (v, d = 3) => Array.isArray(v)
+  ? "[" + v.map(x => (typeof x === "number" ? x.toFixed(d) : x)).join(", ") + "]"
+  : String(v);
+
+function parseVectors(text, dim = 3) {
+  return text.split(/\r?\n/).map(s => s.trim())
+    .filter(s => s && !s.startsWith("#") && !s.startsWith("//"))
+    .map((s, i) => {
+      const parts = s.split(/[\s,，;；]+/).filter(Boolean).map(Number);
+      if (parts.length !== dim || parts.some(x => !Number.isFinite(x)))
+        throw new Error(`第 ${i+1} 行不是合法的 ${dim}D 向量：${s}`);
+      return parts;
+    });
+}
+function parseOne(text, dim = 3) {
+  const v = parseVectors(text, dim);
+  if (v.length !== 1) throw new Error("请恰好输入一个向量");
+  return v[0];
+}
+function solve3(A, b) {
+  const M = A.map((r, i) => r.concat([b[i]]));
+  for (let col = 0; col < 3; col++) {
+    let piv = col;
+    for (let r = col + 1; r < 3; r++)
+      if (Math.abs(M[r][col]) > Math.abs(M[piv][col])) piv = r;
+    if (Math.abs(M[piv][col]) < 1e-10) return null;
+    [M[col], M[piv]] = [M[piv], M[col]];
+    const d = M[col][col];
+    for (let c = col; c < 4; c++) M[col][c] /= d;
+    for (let r = 0; r < 3; r++) {
+      if (r === col) continue;
+      const f = M[r][col];
+      if (Math.abs(f) < 1e-12) continue;
+      for (let c = col; c < 4; c++) M[r][c] -= f * M[col][c];
+    }
+  }
+  return [M[0][3], M[1][3], M[2][3]];
+}
+function gramSchmidt(vectors) {
+  const out = [];
+  for (const v0 of vectors) {
+    let v = v0.slice();
+    for (let pass = 0; pass < 2; pass++)
+      for (const q of out) if (q) v = sub(v, mul(q, dot(v, q)));
+    if (!(norm(v) > 1e-8)) { out.push(null); continue; }
+    out.push(normalize(v));
+  }
+  return out;
+}
+function eigenSymmetric3(A) {
+  const a = A.map(r => r.slice());
+  const v = [[1,0,0],[0,1,0],[0,0,1]];
+  for (let iter = 0; iter < 200; iter++) {
+    let p = 0, q = 1, max = Math.abs(a[0][1]);
+    if (Math.abs(a[0][2]) > max) { p = 0; q = 2; max = Math.abs(a[0][2]); }
+    if (Math.abs(a[1][2]) > max) { p = 1; q = 2; max = Math.abs(a[1][2]); }
+    if (max < 1e-12) break;
+    const theta = (a[q][q] - a[p][p]) / (2 * a[p][q]);
+    const t = (theta >= 0 ? 1 : -1) / (Math.abs(theta) + Math.sqrt(1 + theta*theta));
+    const c = 1 / Math.sqrt(1 + t*t), s = t*c;
+    for (let k = 0; k < 3; k++) {
+      if (k === p || k === q) continue;
+      const akp = a[k][p], akq = a[k][q];
+      a[k][p] = c*akp - s*akq;  a[p][k] = a[k][p];
+      a[k][q] = s*akp + c*akq;  a[q][k] = a[k][q];
+    }
+    const app = a[p][p], aqq = a[q][q], apq = a[p][q];
+    a[p][p] = app - t*apq;  a[q][q] = aqq + t*apq;  a[p][q] = a[q][p] = 0;
+    for (let k = 0; k < 3; k++) {
+      const vkp = v[k][p], vkq = v[k][q];
+      v[k][p] = c*vkp - s*vkq;  v[k][q] = s*vkp + c*vkq;
+    }
+  }
+  return [0,1,2].map(i => ({ value: a[i][i], vector: normalize([v[0][i], v[1][i], v[2][i]]) }))
+                 .sort((x, y) => y.value - x.value);
+}
+
+/* ============================ 渲染基础设施 ============================ */
+const cv3 = document.getElementById("view3d");
+const cv2 = document.getElementById("view2d");
+let yaw = -0.65, pitch = 0.52, zoom = 1;
+let viewScale = 80, cx = 0, cy = 0;
+let activeTab = "std";
+let labelQueue = [];
+
+function setupCanvas(cv) {
+  const dpr = window.devicePixelRatio || 1;
+  const w = cv.clientWidth, h = cv.clientHeight;
+  if (cv.width !== Math.round(w*dpr) || cv.height !== Math.round(h*dpr)) {
+    cv.width = Math.round(w*dpr); cv.height = Math.round(h*dpr);
+  }
+  const ctx = cv.getContext("2d");
+  ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+  ctx.clearRect(0, 0, w, h);
+  const g = ctx.createLinearGradient(0, 0, 0, h);
+  g.addColorStop(0, "#fbfdff"); g.addColorStop(1, "#f1f5fb");
+  ctx.fillStyle = g; ctx.fillRect(0, 0, w, h);
+  return { ctx, w, h };
+}
+function rotate(p) {
+  const cyw = Math.cos(yaw), syw = Math.sin(yaw);
+  const cp = Math.cos(pitch), sp = Math.sin(pitch);
+  const x1 = cyw*p[0] + syw*p[1];
+  const y1 = -syw*p[0] + cyw*p[1];
+  const y2 = cp*y1 + sp*p[2];
+  const z2 = -sp*y1 + cp*p[2];
+  return [x1, y2, z2];
+}
+function project(p) {
+  const r = rotate(p);
+  return { x: cx + r[0]*viewScale, y: cy - r[1]*viewScale, depth: r[2] };
+}
+function fitScale(points, w, h) {
+  let m = 1;
+  for (const p of points) for (const c of p) m = Math.max(m, Math.abs(c));
+  viewScale = Math.min(w, h) * 0.33 * zoom / m;
+}
+
+/* ---- 标签：白底小卡片 + 自动避让 ---- */
+function rgba(hex, a) {
+  if (typeof hex !== "string" || hex[0] !== "#") return hex;
+  const h = hex.slice(1);
+  const full = h.length === 3 ? h.split("").map(c => c+c).join("") : h;
+  const n = parseInt(full, 16);
+  return `rgba(${(n>>16)&255},${(n>>8)&255},${n&255},${a})`;
+}
+function addLabel(x, y, text, color, opt = {}) {
+  if (!text) return;
+  labelQueue.push({ x, y, text, color, priority: opt.priority ?? 3, dot: opt.dot !== false });
+}
+function roundRectPath(ctx, x, y, w, h, r) {
+  ctx.beginPath();
+  if (ctx.roundRect) { ctx.roundRect(x, y, w, h, r); return; }
+  ctx.moveTo(x+r, y); ctx.lineTo(x+w-r, y); ctx.quadraticCurveTo(x+w, y, x+w, y+r);
+  ctx.lineTo(x+w, y+h-r); ctx.quadraticCurveTo(x+w, y+h, x+w-r, y+h);
+  ctx.lineTo(x+r, y+h); ctx.quadraticCurveTo(x, y+h, x, y+h-r);
+  ctx.lineTo(x, y+r); ctx.quadraticCurveTo(x, y, x+r, y);
+  ctx.closePath();
+}
+function overlapArea(a, b) {
+  const w = Math.min(a.x+a.w, b.x+b.w) - Math.max(a.x, b.x);
+  const h = Math.min(a.y+a.h, b.y+b.h) - Math.max(a.y, b.y);
+  return w > 0 && h > 0 ? w*h : 0;
+}
+function drawLabels(ctx, w, h) {
+  if (!labelQueue.length) return;
+  ctx.save();
+  ctx.font = "600 11.5px ui-monospace, Menlo, Consolas, monospace";
+  labelQueue.sort((a,b) => a.priority - b.priority);
+  const placed = [];
+  for (const L of labelQueue) {
+    const tw = ctx.measureText(L.text).width;
+    const lw = tw + (L.dot ? 22 : 14), lh = 20;
+    const cands = [
+      [10, -lh-5], [10, 5], [-lw-10, -lh-5], [-lw-10, 5],
+      [-lw/2, -lh-11], [-lw/2, 9], [10, -lh-18], [-lw-10, -lh-18]
+    ];
+    let best = null, bestOv = Infinity;
+    for (const [dx, dy] of cands) {
+      const r = {
+        x: Math.max(4, Math.min(w-lw-4, L.x+dx)),
+        y: Math.max(4, Math.min(h-lh-4, L.y+dy)),
+        w: lw, h: lh
+      };
+      let ov = 0;
+      for (const p of placed) ov += overlapArea(r, p);
+      if (ov === 0) { best = r; bestOv = 0; break; }
+      if (ov < bestOv) { bestOv = ov; best = r; }
+    }
+    placed.push(best);
+    ctx.shadowColor = "rgba(15,23,42,0.10)"; ctx.shadowBlur = 5; ctx.shadowOffsetY = 1;
+    roundRectPath(ctx, best.x, best.y, best.w, best.h, 6);
+    ctx.fillStyle = "rgba(255,255,255,0.96)"; ctx.fill();
+    ctx.shadowColor = "transparent";
+    ctx.strokeStyle = rgba(L.color, 0.4); ctx.lineWidth = 1; ctx.stroke();
+    if (L.dot) {
+      ctx.fillStyle = L.color;
+      roundRectPath(ctx, best.x+6, best.y+7, 3, lh-14, 2); ctx.fill();
+    }
+    ctx.fillStyle = "#0f172a";
+    ctx.fillText(L.text, best.x + (L.dot ? 13 : 7), best.y + 14);
+  }
+  ctx.restore();
+  labelQueue = [];
+}
+
+function arrow3(from, to, color, label, opt = {}) {
+  return {
+    depth: () => (project(from).depth + project(to).depth) / 2,
+    draw(ctx) {
+      const a = project(from), b = project(to);
+      const len = Math.hypot(b.x-a.x, b.y-a.y);
+      ctx.save();
+      ctx.strokeStyle = color; ctx.fillStyle = color;
+      ctx.lineWidth = opt.width || 2.5;
+      ctx.setLineDash(opt.dash || []);
+      if (len > 0.5) {
+        ctx.beginPath(); ctx.moveTo(a.x, a.y); ctx.lineTo(b.x, b.y); ctx.stroke();
+        if (!opt.noHead) {
+          const ang = Math.atan2(b.y-a.y, b.x-a.x);
+          const hs = Math.min(11, Math.max(6, len*0.25));
+          ctx.setLineDash([]);
+          ctx.beginPath(); ctx.moveTo(b.x, b.y);
+          ctx.lineTo(b.x - hs*Math.cos(ang-0.38), b.y - hs*Math.sin(ang-0.38));
+          ctx.lineTo(b.x - hs*Math.cos(ang+0.38), b.y - hs*Math.sin(ang+0.38));
+          ctx.closePath(); ctx.fill();
+        }
+      } else {
+        ctx.beginPath(); ctx.arc(a.x, a.y, 3, 0, Math.PI*2); ctx.fill();
+      }
+      ctx.restore();
+      if (label) {
+        const t = opt.labelAt === "mid" ? 0.5 : 0.96;
+        addLabel(a.x + (b.x-a.x)*t, a.y + (b.y-a.y)*t,
+                 label, color, { priority: opt.priority ?? 3 });
+      }
+    }
+  };
+}
+function point3(p, color, label, r = 5, priority = 3) {
+  return {
+    depth: () => project(p).depth,
+    draw(ctx) {
+      const s = project(p);
+      ctx.save();
+      ctx.fillStyle = rgba(color, 0.95);
+      ctx.beginPath(); ctx.arc(s.x, s.y, r, 0, Math.PI*2); ctx.fill();
+      ctx.strokeStyle = "#fff"; ctx.lineWidth = 2; ctx.stroke();
+      ctx.restore();
+      if (label) addLabel(s.x, s.y, label, color, { priority, dot: false });
+    }
+  };
+}
+function plane3(origin, u, v, color) {
+  const getCorners = () => [
+    origin, add(origin, u), add(origin, add(u, v)), add(origin, v)
+  ].map(project);
+  return {
+    depth: () => getCorners().reduce((s, c) => s + c.depth, 0) / 4 - 0.01,
+    draw(ctx) {
+      const c = getCorners();
+      ctx.save();
+      ctx.beginPath(); ctx.moveTo(c[0].x, c[0].y);
+      for (let i = 1; i < 4; i++) ctx.lineTo(c[i].x, c[i].y);
+      ctx.closePath();
+      ctx.fillStyle = rgba(color, 0.10); ctx.fill();
+      ctx.strokeStyle = rgba(color, 0.45); ctx.lineWidth = 1.3; ctx.stroke();
+      ctx.strokeStyle = rgba(color, 0.18); ctx.lineWidth = 1;
+      for (let i = 1; i < 5; i++) {
+        const t = i/5;
+        const a = project(add(origin, mul(u, t))), b = project(add(origin, add(mul(u, t), v)));
+        ctx.beginPath(); ctx.moveTo(a.x,a.y); ctx.lineTo(b.x,b.y); ctx.stroke();
+        const c1 = project(add(origin, mul(v, t))), d = project(add(origin, add(mul(v, t), u)));
+        ctx.beginPath(); ctx.moveTo(c1.x,c1.y); ctx.lineTo(d.x,d.y); ctx.stroke();
+      }
+      ctx.restore();
+    }
+  };
+}
+function drawGrid(ctx, extent) {
+  ctx.save(); ctx.lineWidth = 1;
+  const G = Math.max(1, Math.ceil(extent));
+  for (let i = -G; i <= G; i++) {
+    const a = project([i,-G,0]), b = project([i,G,0]);
+    const c = project([-G,i,0]), d = project([G,i,0]);
+    ctx.strokeStyle = i === 0 ? "#d8e0ea" : "#e9eef5";
+    ctx.beginPath(); ctx.moveTo(a.x,a.y); ctx.lineTo(b.x,b.y); ctx.stroke();
+    ctx.beginPath(); ctx.moveTo(c.x,c.y); ctx.lineTo(d.x,d.y); ctx.stroke();
+  }
+  ctx.restore();
+}
+function render3D(points, extra, extent) {
+  const { ctx, w, h } = setupCanvas(cv3);
+  cx = w/2; cy = h/2;
+  fitScale(points.concat([[extent,extent,extent],[-extent,-extent,-extent]]), w, h);
+  drawGrid(ctx, extent);
+  const axes = [
+    arrow3([0,0,0], [extent,0,0], "#dc2626", "x", {width:2, priority:1}),
+    arrow3([0,0,0], [0,extent,0], "#16a34a", "y", {width:2, priority:1}),
+    arrow3([0,0,0], [0,0,extent], "#2563eb", "z", {width:2, priority:1})
+  ];
+  const all = axes.concat(extra).sort((a,b) => a.depth() - b.depth());
+  for (const item of all) item.draw(ctx);
+  drawLabels(ctx, w, h);
+}
+function draw2D(points2, labels, color) {
+  const { ctx, w, h } = setupCanvas(cv2);
+  const ox = w/2, oy = h/2;
+  let m = 1;
+  for (const p of points2) m = Math.max(m, Math.abs(p[0]), Math.abs(p[1]));
+  const s = Math.min(w, h) * 0.38 * zoom / m;
+  const X = p => ox + p[0]*s, Y = p => oy - p[1]*s;
+  ctx.save();
+  ctx.strokeStyle = "#e8eef5"; ctx.lineWidth = 1;
+  for (let i = -Math.ceil(m); i <= Math.ceil(m); i++) {
+    ctx.beginPath(); ctx.moveTo(X([i,0]), Y([i,-m])); ctx.lineTo(X([i,0]), Y([i,m])); ctx.stroke();
+    ctx.beginPath(); ctx.moveTo(X([-m,i]), Y([0,i])); ctx.lineTo(X([m,i]), Y([0,i])); ctx.stroke();
+  }
+  ctx.strokeStyle = "#94a3b8"; ctx.lineWidth = 1.5;
+  ctx.beginPath(); ctx.moveTo(0, oy); ctx.lineTo(w, oy); ctx.stroke();
+  ctx.beginPath(); ctx.moveTo(ox, 0); ctx.lineTo(ox, h); ctx.stroke();
+  ctx.fillStyle = "#dc2626"; ctx.font = "600 11px ui-monospace, monospace";
+  ctx.fillText("PC1 / u →", w - 78, oy - 8);
+  ctx.fillStyle = "#16a34a"; ctx.fillText("PC2 / v ↑", ox + 8, 18);
+  points2.forEach((p, i) => {
+    ctx.fillStyle = rgba(color, 0.95);
+    ctx.beginPath(); ctx.arc(X(p), Y(p), 5, 0, Math.PI*2); ctx.fill();
+    ctx.strokeStyle = "#fff"; ctx.lineWidth = 2; ctx.stroke();
+    addLabel(X(p), Y(p), labels[i] || ("p"+(i+1)), color, { priority: 4, dot: false });
+  });
+  ctx.restore();
+  drawLabels(ctx, w, h);
+}
+
+/* ============================ 结果面板 ============================ */
+const stageTitles = {
+  std: ["标准正交基中的向量", "标准正交基 E"],
+  basis: ["基变换", "u = B⁻¹x"],
+  proj: ["3D → 2D 降维投影", "保留最大方差方向"],
+  gram: ["施密特正交化", "Gram–Schmidt"]
+};
+function setLegend(items) {
+  document.getElementById("legend").innerHTML = items
+    .map(([c,t]) => `<span class="lg"><i style="background:${c}"></i>${t}</span>`).join("");
+}
+function setResult(html) {
+  const el = document.getElementById("results");
+  el.innerHTML = html; el.className = "";
+}
+function showError(msg) {
+  const el = document.getElementById("results");
+  el.textContent = "错误：" + msg; el.className = "error";
+}
+const kv = (k, v) => `<div class="kv"><span class="k">${k}</span><span class="v">${v}</span></div>`;
+
+/* ============================ 四个场景 ============================ */
+function sceneStd() {
+  const vs = parseVectors(document.getElementById("stdVecs").value);
+  const ext = Math.max(1, ...vs.flat().map(Math.abs)) * 1.15;
+  const colors = ["#111827", "#ea580c", "#7c3aed", "#0891b2", "#db2777"];
+  const labels = vs.map((v,i) => `v${i+1} = (${v.map(x=>x.toFixed(1)).join(", ")})`);
+  render3D(vs, vs.map((v,i) => arrow3([0,0,0], v, colors[i % colors.length], labels[i], {width:2.8, priority:2})), ext);
+  setLegend([
+    ["#dc2626","x 轴"], ["#16a34a","y 轴"], ["#2563eb","z 轴"],
+    ...vs.map((_,i) => [colors[i % colors.length], `v${i+1}`])
+  ]);
+  setResult(`<div class="res-title">标准正交基 E 下的向量</div>
+    <div class="kv-grid">${vs.map((v,i) => kv(`v${i+1}`, fmt(v) + " &nbsp;|v|=" + norm(v).toFixed(3))).join("")}</div>
+    <div class="note">E = (e₁ = [1,0,0], e₂ = [0,1,0], e₃ = [0,0,1])，向量坐标即各轴上的投影长度。</div>`);
+}
+
+function sceneBasis() {
+  const basis = parseVectors(document.getElementById("basisVecs").value);
+  if (basis.length !== 3) throw new Error("需要恰好 3 个基向量");
+  const x = parseOne(document.getElementById("basisX").value);
+  const B = [[basis[0][0],basis[1][0],basis[2][0]],
+             [basis[0][1],basis[1][1],basis[2][1]],
+             [basis[0][2],basis[1][2],basis[2][2]]];
+  const u = solve3(B, x);
+  if (!u) throw new Error("给定的三个向量线性相关，不能构成一组基");
+
+  const colors = ["#ea580c", "#7c3aed", "#0891b2"];
+  const sub = ["₁","₂","₃"];
+  let cursor = [0,0,0];
+  const items = [];
+  for (let i = 0; i < 3; i++) {
+    items.push(arrow3([0,0,0], basis[i], colors[i], `b${i+1}`, {width:2.2, labelAt:"mid", priority:2}));
+  }
+  for (let i = 0; i < 3; i++) {
+    const piece = mul(basis[i], u[i]);
+    const next = add(cursor, piece);
+    items.push(arrow3(cursor, next, colors[i], `u${sub[i]}b${i+1} = ${u[i].toFixed(2)}`,
+      {dash:[5,4], width:2, labelAt:"mid", priority:3}));
+    items.push(point3(next, colors[i], "", 3.5));
+    cursor = next;
+  }
+  items.push(arrow3([0,0,0], x, "#0f172a", "x（原向量）", {width:3.2, priority:1}));
+  items.push(arrow3([0,0,0], cursor, "#dc2626", "B·u（重建）", {dash:[2,3], width:2, priority:2}));
+  const ext = Math.max(1, ...basis.flat().map(Math.abs), ...x.map(Math.abs)) * 1.2;
+  render3D(basis.concat([x, cursor]), items, ext);
+  setLegend([
+    ["#ea580c","基 b₁"], ["#7c3aed","基 b₂"], ["#0891b2","基 b₃"],
+    ["#0f172a","原向量 x"], ["#dc2626","分量叠加结果"]
+  ]);
+  const err = norm(sub3(cursor, x));
+  setResult(`<div class="res-title">在新基 B 下的坐标</div>
+    <div class="formula">B · u = x &nbsp;&nbsp;⇒&nbsp;&nbsp; u = B⁻¹ · x</div>
+    <div class="kv-grid">
+      ${[0,1,2].map(i => kv(`u${sub[i]}`, u[i].toFixed(4))).join("")}
+    </div>
+    <div class="mono">b₁=${fmt(basis[0])}, &nbsp;b₂=${fmt(basis[1])}, &nbsp;b₃=${fmt(basis[2])}
+x = ${fmt(x)}
+u₁b₁ + u₂b₂ + u₃b₃ = ${fmt(cursor)}
+重建误差 ‖B·u − x‖ = ${err.toExponential(2)}</div>`);
+}
+function sub3(a,b){ return [a[0]-b[0], a[1]-b[1], a[2]-b[2]]; }
+
+function sceneProj() {
+  const pts = parseVectors(document.getElementById("projPts").value);
+  if (pts.length < 2) throw new Error("至少需要 2 个点");
+  const mode = document.getElementById("projMode").value;
+  let u, v, center = [0,0,0], infoHtml = "", eigs = null;
+
+  if (mode === "pca") {
+    const n = pts.length;
+    center = [0,1,2].map(k => pts.reduce((s,p) => s + p[k], 0) / n);
+    const C = [[0,0,0],[0,0,0],[0,0,0]];
+    for (const p of pts) {
+      const d = sub(p, center);
+      for (let i=0;i<3;i++) for (let j=0;j<3;j++) C[i][j] += d[i]*d[j]/n;
+    }
+    eigs = eigenSymmetric3(C);
+    u = eigs[0].vector; v = eigs[1].vector;
+    const total = eigs.reduce((s,e) => s + Math.max(0,e.value), 0);
+    const maxv = Math.max(...eigs.map(e => Math.max(0,e.value))) || 1;
+    infoHtml = `<div class="res-title">PCA 投影平面</div>
+      <div class="formula">中心 c = ${fmt(center)}</div>
+      ${eigs.map((e,i) => `<div class="bar-row"><span>λ${i+1}</span>
+        <div class="bar-track"><i style="width:${Math.max(1,Math.max(0,e.value)/maxv*100).toFixed(1)}%"></i></div>
+        <span>${e.value.toFixed(4)}</span></div>`).join("")}
+      <div class="note">前两主成分累计解释方差 ${total > 0 ? ((eigs[0].value+eigs[1].value)/total*100).toFixed(2) : "0.00"}%</div>`;
+  } else {
+    const pu = parseOne(document.getElementById("planeU").value);
+    const pv = parseOne(document.getElementById("planeV").value);
+    const q = gramSchmidt([pu, pv]);
+    if (!q[0] || !q[1]) throw new Error("平面 u、v 线性相关，无法张成平面");
+    u = q[0]; v = q[1];
+    infoHtml = `<div class="res-title">自定义投影平面</div>
+      <div class="formula">span(u, v)，u = ${fmt(u)}, &nbsp;v = ${fmt(v)}</div>
+      <div class="note">两个向量已做施密特正交化；直接投影原始位置向量。</div>`;
+  }
+
+  const proj2 = pts.map(p => { const d = sub(p, center); return [dot(d,u), dot(d,v)]; });
+  const proj3 = pts.map(t => add(center, add(mul(u,t[0]), mul(v,t[1]))));
+  const ext = Math.max(1, ...pts.flat().map(Math.abs)) * 1.15;
+  const planeU = mul(u, ext*0.85), planeV = mul(v, ext*0.85);
+  const items = [
+    plane3(add(center, mul(add(planeU,planeV), -0.5)), planeU, planeV, "#2563eb"),
+    arrow3(center, add(center, planeU), "#dc2626", "u", {width:2, labelAt:"mid", priority:2}),
+    arrow3(center, add(center, planeV), "#16a34a", "v", {width:2, labelAt:"mid", priority:2})
+  ];
+  for (let i = 0; i < pts.length; i++) {
+    items.push(arrow3(pts[i], proj3[i], "#94a3b8", "", {dash:[3,4], width:1, noHead:true}));
+    items.push(point3(pts[i], "#334155", `p${i+1}`, 4.5, 3));
+    items.push(point3(proj3[i], "#2563eb", "", 4, 2));
+  }
+  render3D(pts.concat(proj3), items, ext);
+  setLegend([
+    ["#334155","原始点 p"], ["#2563eb","投影点 p′ / 投影平面"],
+    ["#dc2626","方向 u"], ["#16a34a","方向 v"]
+  ]);
+  draw2D(proj2, pts.map((_,i) => `p${i+1}′`), "#2563eb");
+  setResult(infoHtml + `
+    <table class="coord">
+      <thead><tr><th>点</th><th>坐标 1</th><th>坐标 2</th></tr></thead>
+      <tbody>${proj2.map((p,i) => `<tr><td>p${i+1}′</td><td>${p[0].toFixed(3)}</td><td>${p[1].toFixed(3)}</td></tr>`).join("")}</tbody>
+    </table>`);
+}
+
+function sceneGram() {
+  const vs = parseVectors(document.getElementById("gramVecs").value);
+  if (vs.length < 1 || vs.length > 3) throw new Error("请输入 1~3 个向量");
+  const qs = gramSchmidt(vs);
+  if (qs.some(q => !q)) throw new Error("输入向量组线性相关，无法得到完整正交基");
+  const colors = ["#dc2626", "#16a34a", "#2563eb"];
+  const items = [];
+  vs.forEach((v,i) => items.push(arrow3([0,0,0], v, "#94a3b8", `v${i+1}`, {dash:[4,4], width:2, labelAt:"mid", priority:3})));
+  qs.forEach((q,i) => items.push(arrow3([0,0,0], q, colors[i], `q${i+1}`, {width:3, priority:2})));
+  const ext = Math.max(1, ...vs.flat().map(Math.abs)) * 1.15;
+  render3D(vs.concat(qs), items, ext);
+  setLegend([
+    ["#94a3b8","原向量 v（虚线）"], ["#dc2626","q₁"], ["#16a34a","q₂"], ["#2563eb","q₃"]
+  ]);
+  const G = qs.map((a,i) => qs.map((b,j) => dot(a,b)));
+  setResult(`<div class="res-title">标准正交基 Q 与正交性验证</div>
+    <div class="kv-grid">${qs.map((q,i) => kv(`q${i+1}`, fmt(q))).join("")}</div>
+    <div class="matrix">QᵀQ = &nbsp;${G.map(r => "[" + r.map(x => x.toFixed(3).padStart(6)).join(" ") + " ]").join("<br>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;")}</div>
+    <div class="note">原向量 v（灰色虚线）与正交基 q（彩色实线）张成相同子空间；QᵀQ 应接近单位阵。</div>`);
+}
+
+/* ============================ 页面控制 ============================ */
+function toggleProjInputs() {
+  document.getElementById("customPlane").classList.toggle(
+    "hidden", document.getElementById("projMode").value !== "custom");
+}
+function render() {
+  labelQueue = [];
+  try {
+    document.getElementById("view2dWrap").classList.toggle("hidden", activeTab !== "proj");
+    document.getElementById("stageTitle").innerHTML = `${stageTitles[activeTab][0]}<small>${stageTitles[activeTab][1]}</small>`;
+    ({ std: sceneStd, basis: sceneBasis, proj: sceneProj, gram: sceneGram })[activeTab]();
+  } catch (e) { showError(e.message); }
+}
+function resetView() { yaw = -0.65; pitch = 0.52; zoom = 1; render(); }
+document.querySelectorAll(".tab").forEach(tab => {
+  tab.addEventListener("click", () => {
+    document.querySelectorAll(".tab").forEach(t => t.classList.remove("active"));
+    document.querySelectorAll(".sec").forEach(s => s.classList.remove("active"));
+    tab.classList.add("active");
+    activeTab = tab.dataset.tab;
+    document.getElementById("sec-" + activeTab).classList.add("active");
+    resetView();
+  });
+});
+const examples = {
+  std: { stdVecs: "2,3,1\n-1,2,3\n3,-1,2" },
+  basis: { basisVecs: "2,1,0\n0,1,1\n1,0,1", basisX: "5,4,7" },
+  proj: { projPts: "1,0,0.6\n2,1,1.3\n3,1,1.8\n4,2,2.4\n5,2,2.9\n0,-1,-0.4", projMode: "pca" },
+  gram: { gramVecs: "1,1,0\n1,0,1\n0,1,1" }
+};
+function loadExample(key) {
+  for (const [id, value] of Object.entries(examples[key])) {
+    const el = document.getElementById(id); if (el) el.value = value;
+  }
+  toggleProjInputs(); render();
+}
+let dragging = false, lastX = 0, lastY = 0;
+cv3.addEventListener("mousedown", e => { dragging = true; lastX = e.clientX; lastY = e.clientY; });
+window.addEventListener("mouseup", () => { dragging = false; });
+window.addEventListener("mousemove", e => {
+  if (!dragging) return;
+  yaw += (e.clientX - lastX) * 0.008;
+  pitch = Math.max(-1.45, Math.min(1.45, pitch + (e.clientY - lastY) * 0.008));
+  lastX = e.clientX; lastY = e.clientY; render();
+});
+cv3.addEventListener("wheel", e => {
+  e.preventDefault();
+  zoom = Math.max(0.3, Math.min(3, zoom * (e.deltaY > 0 ? 0.92 : 1.08)));
+  render();
+}, { passive: false });
+window.addEventListener("resize", render);
+
+toggleProjInputs();
+render();
+</script>
+</body>
+</html>
